@@ -1,0 +1,190 @@
+---
+# MongoDB section
+- name: Configure Database Server
+  hosts: database
+  become: yes
+
+  handlers:
+    - name: restart mongodb
+      systemd:
+        name: mongod
+        state: restarted
+        daemon_reload: yes
+
+    - name: reload mongodb
+      systemd:
+        name: mongod
+        state: reloaded
+
+  tasks:
+    - name: Install MongoDB
+      include_tasks: tasks/install_mongodb.yml
+
+    - name: Install MongoDB Exporter
+      include_tasks: tasks/install_mongodb_exporter.yml
+
+    - name: Configure MongoDB
+      include_tasks: tasks/configure_mongodb.yml
+
+    - name: Configure firewall
+      include_tasks: tasks/configure_firewall.yml
+
+# Webserver section
+- name: Configure Web Server
+  hosts: webserver
+  become: yes
+
+  tasks:
+    - name: Wait for MongoDB to be ready
+      wait_for:
+        host: "{{ hostvars['db_node']['ansible_host'] }}"
+        port: 27017
+        delay: 5
+        timeout: 30
+      register: mongodb_check
+      ignore_errors: yes
+
+    - name: Verify MongoDB host
+      debug:
+        msg: "Attempting to connect to MongoDB at {{ hostvars['db_node']['ansible_host'] }}:27017"
+
+    - name: Install Node.js and dependencies
+      include_tasks: tasks/install_webserver.yml
+
+    - name: Install Node Exporter
+      include_tasks: tasks/install_node_exporter.yml
+
+    - name: Purge old corrupted git destination folder layout
+      ansible.builtin.file:
+        path: /opt/TravelMemory
+        state: absent
+
+    - name: Create TravelMemory root directory with correct permissions
+      ansible.builtin.file:
+        path: /opt/TravelMemory
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+      # Runs as root (become: yes is inherited from the play level)
+
+    - name: Clone TravelMemory repository cleanly from GitHub
+      ansible.builtin.git:
+        repo: https://github.com/thupeshkumar/TravelMemory.git
+        dest: /opt/TravelMemory
+        version: main
+        force: yes
+      become_user: ubuntu  # Safely clones into the folder owned by ubuntu
+
+
+    - name: Set permissions for TravelMemory directory
+      file:
+        path: /opt/TravelMemory
+        state: directory
+        recurse: yes
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Create log directories
+      file:
+        path: "/var/log/travelapp"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+    - name: Configure backend environment
+      template:
+        src: templates/backend.env.j2
+        dest: /opt/TravelMemory/backend/.env
+
+    - name: Configure frontend environment
+      template:
+        src: templates/frontend.env.j2
+        dest: /opt/TravelMemory/frontend/.env
+
+    - name: Ensure environment files have correct permissions
+      file:
+        path: "{{ item }}"
+        mode: '0600'
+      with_items:
+        - /opt/TravelMemory/backend/.env
+        - /opt/TravelMemory/frontend/.env
+
+    - name: Install backend dependencies
+      npm:
+        path: /opt/TravelMemory/backend
+        state: present
+
+    - name: Install frontend dependencies
+      npm:
+        path: /opt/TravelMemory/frontend
+        state: present
+
+    - name: Create backend service file
+      template:
+        src: templates/travelapp-backend.service.j2
+        dest: /etc/systemd/system/travelapp-backend.service
+        mode: '0644'
+
+    - name: Create frontend service file
+      template:
+        src: templates/travelapp-frontend.service.j2
+        dest: /etc/systemd/system/travelapp-frontend.service
+        mode: '0644'
+
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: Stop existing services if running
+      systemd:
+        name: "{{ item }}"
+        state: stopped
+      with_items:
+        - travelapp-backend
+        - travelapp-frontend
+      ignore_errors: yes
+
+    - name: Enable and start backend service
+      systemd:
+        name: travelapp-backend
+        state: restarted
+        enabled: yes
+
+    - name: Wait for backend to be ready
+      wait_for:
+        port: "{{ backend_port }}"
+        timeout: 30
+
+    - name: Enable and start frontend service
+      systemd:
+        name: travelapp-frontend
+        state: restarted
+        enabled: yes
+
+    - name: Wait for frontend to be ready
+      wait_for:
+        port: "{{ frontend_port }}"
+        timeout: 30
+
+    - name: Check services status
+      command: systemctl status {{ item }}
+      register: service_status
+      with_items:
+        - travelapp-backend
+        - travelapp-frontend
+      ignore_errors: yes
+
+    - name: Display services status
+      debug:
+        var: service_status
+
+# Security Configuration section
+- name: Apply Security Configurations
+  hosts: all
+  become: yes
+  tasks:
+    - name: Configure SSH hardening
+      include_tasks: tasks/ssh_hardening.yml

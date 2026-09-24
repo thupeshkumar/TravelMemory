@@ -1,0 +1,37 @@
+# tasks/install_mongodb_exporter.yml
+---
+- name: Download MongoDB Exporter
+  get_url:
+    url: https://github.com/percona/mongodb_exporter/releases/download/v0.20.7/mongodb_exporter-0.20.7.linux-amd64.tar.gz
+    dest: /tmp/mongodb_exporter.tar.gz
+
+- name: Create directory for MongoDB Exporter
+  file:
+    path: /tmp/mongodb_exporter
+    state: directory
+
+- name: Extract MongoDB Exporter
+  unarchive:
+    src: /tmp/mongodb_exporter.tar.gz
+    dest: /tmp/mongodb_exporter
+    remote_src: yes
+
+- name: Move MongoDB Exporter binary
+  copy:
+    src: /tmp/mongodb_exporter/mongodb_exporter-0.20.7.linux-amd64/mongodb_exporter
+    dest: /usr/local/bin/mongodb_exporter
+    remote_src: yes
+    mode: '0755'
+
+- name: Create MongoDB Exporter service file
+  template:
+    src: templates/mongodb_exporter.service.j2
+    dest: /etc/systemd/system/mongodb_exporter.service
+    mode: '0644'
+
+- name: Start MongoDB Exporter service
+  systemd:
+    name: mongodb_exporter
+    state: started
+    enabled: yes
+    daemon_reload: yes

@@ -1,0 +1,78 @@
+# tasks/install_webserver.yml
+---
+- name: Clean apt
+  apt:
+    clean: yes
+    autoclean: yes
+
+- name: Remove existing Node.js and npm
+  apt:
+    name:
+      - nodejs
+      - npm
+    state: absent
+    purge: yes
+
+- name: Remove old Node.js sources
+  file:
+    path: /etc/apt/sources.list.d/nodesource.list
+    state: absent
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Install curl and other prerequisites
+  apt:
+    name:
+      - curl
+      - ca-certificates
+      - gnupg
+    state: present
+
+- name: Add NodeSource GPG key
+  apt_key:
+    url: https://deb.nodesource.com/gpgkey/nodesource.gpg.key
+    state: present
+
+- name: Add NodeSource repository
+  shell: |
+    curl -fsSL https://deb.nodesource.com/setup_16.x | sudo -E bash -
+  args:
+    creates: /etc/apt/sources.list.d/nodesource.list
+
+- name: Install Node.js
+  apt:
+    name: nodejs
+    state: present
+    update_cache: yes
+
+- name: Install npm separately
+  shell: |
+    apt-get install -y npm
+  args:
+    creates: /usr/bin/npm
+
+- name: Install other dependencies
+  apt:
+    name:
+      - git
+      - prometheus
+    state: present
+    update_cache: yes
+
+- name: Verify Node.js installation
+  command: node --version
+  register: node_version
+  changed_when: false
+
+- name: Verify npm installation
+  command: npm --version
+  register: npm_version
+  changed_when: false
+
+- name: Debug Node.js and npm versions
+  debug:
+    msg:
+      - "Node.js version: {{ node_version.stdout }}"
+      - "npm version: {{ npm_version.stdout }}"

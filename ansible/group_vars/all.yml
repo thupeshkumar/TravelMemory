@@ -1,0 +1,5 @@
+---
+# Inject your explicit Atlas parameters securely
+mongo_uri: "mongodb+srv://sivamcomz_db_user:D998aHdqWnvpm1tu@studentdb.tetcnkr.mongodb.net/travelmemory?appName=StudentDB"
+backend_port: 3001
+frontend_port: 3000

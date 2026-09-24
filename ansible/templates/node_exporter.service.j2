@@ -1,0 +1,14 @@
+# templates/node_exporter.service.j2
+[Unit]
+Description=Node Exporter
+After=network.target
+
+[Service]
+User=node_exporter
+Group=node_exporter
+Type=simple
+ExecStart=/usr/local/bin/node_exporter \
+    --collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)
+
+[Install]
+WantedBy=multi-user.target

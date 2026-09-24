@@ -1,0 +1,18 @@
+[Unit]
+Description=TravelMemory Express Backend Service
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/TravelMemory/backend
+# Seamless inline injection of group_vars parameters
+Environment="MONGO_URI={{ mongo_uri }}"
+Environment="PORT={{ backend_port }}"
+ExecStart=/usr/bin/node index.js
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
+

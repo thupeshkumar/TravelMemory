@@ -1,0 +1,58 @@
+# tasks/configure_mongodb.yml
+---
+- name: Create MongoDB log directory
+  file:
+    path: /var/log/mongodb
+    state: directory
+    owner: mongodb
+    group: mongodb
+    mode: '0755'
+
+- name: Install pip
+  apt:
+    name: python3-pip
+    state: present
+
+- name: Install pymongo
+  pip:
+    name:
+      - pymongo
+      - pymongo[srv]
+    state: present
+
+- name: Configure MongoDB without auth first
+  template:
+    src: templates/mongod_noauth.conf.j2
+    dest: /etc/mongod.conf
+  notify: restart mongodb
+
+- name: Ensure MongoDB is running
+  systemd:
+    name: mongod
+    state: restarted
+    enabled: yes
+
+- name: Wait for MongoDB to start
+  wait_for:
+    port: 27017
+    delay: 10
+    timeout: 30
+
+- name: Create MongoDB user
+  community.mongodb.mongodb_user:
+    database: "admin"
+    name: "{{ mongo_user }}"
+    password: "{{ mongo_password }}"
+    roles:
+      - db: "admin"
+        role: "userAdminAnyDatabase"
+      - db: "{{ mongo_db_name }}"
+        role: "dbOwner"
+    state: present
+    login_port: 27017
+
+- name: Configure MongoDB with auth
+  template:
+    src: templates/mongod.conf.j2
+    dest: /etc/mongod.conf
+  notify: restart mongodb

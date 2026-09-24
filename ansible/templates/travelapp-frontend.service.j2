@@ -1,0 +1,18 @@
+# templates/travelapp-frontend.service.j2
+[Unit]
+Description=Travel Memory Frontend
+After=network.target travelapp-backend.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/TravelMemory/frontend
+Environment=PORT=3000
+Environment=REACT_APP_BACKEND_URL=http://{{ ansible_host }}:3001
+ExecStart=/usr/bin/npm start
+Restart=on-failure
+StandardOutput=append:/var/log/travelapp-frontend.log
+StandardError=append:/var/log/travelapp-frontend.error.log
+
+[Install]
+WantedBy=multi-user.target

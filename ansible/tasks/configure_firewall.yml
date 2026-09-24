@@ -1,0 +1,19 @@
+# tasks/configure_firewall.yml
+---
+- name: Allow SSH
+  ufw:
+    rule: allow
+    port: 22
+    proto: tcp
+
+- name: Allow MongoDB
+  ufw:
+    rule: allow
+    port: 27017
+    proto: tcp
+    src: "{{ hostvars[groups['webserver'][0]]['ansible_host'] }}"
+
+- name: Enable UFW
+  ufw:
+    state: enabled
+    policy: deny

@@ -1,0 +1,13 @@
+# templates/mongodb_exporter.service.j2
+[Unit]
+Description=MongoDB Exporter
+User=mongodb_exporter
+After=network.target
+
+[Service]
+Type=simple
+Environment="MONGODB_URI=mongodb://{{ mongo_user }}:{{ mongo_password }}@localhost:27017/{{ mongo_db_name }}"
+ExecStart=/usr/local/bin/mongodb_exporter
+
+[Install]
+WantedBy=multi-user.target

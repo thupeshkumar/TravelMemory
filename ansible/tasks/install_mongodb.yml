@@ -1,0 +1,55 @@
+# tasks/install_mongodb.yml
+---
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Install required dependencies
+  apt:
+    name:
+      - gnupg
+      - curl
+    state: present
+
+- name: Add MongoDB GPG key
+  apt_key:
+    url: https://www.mongodb.org/static/pgp/server-6.0.asc
+    state: present
+
+- name: Add MongoDB repository
+  apt_repository:
+    repo: deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse
+    state: present
+
+- name: Install dependencies
+  apt:
+    name:
+      - wget
+    state: present
+
+- name: Download libssl1.1
+  get_url:
+    url: http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+    dest: /tmp/libssl1.1.deb
+
+- name: Install libssl1.1
+  apt:
+    deb: /tmp/libssl1.1.deb
+    state: present
+
+- name: Clean apt cache
+  apt:
+    clean: yes
+
+- name: Install MongoDB
+  apt:
+    name: mongodb-org
+    state: present
+    update_cache: yes
+    install_recommends: yes
+
+- name: Start MongoDB service
+  systemd:
+    name: mongod
+    state: started
+    enabled: yes

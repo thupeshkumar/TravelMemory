@@ -1,0 +1,4 @@
+---
+mongo_db_name: "travelmemory"
+mongo_user: "admin"
+mongo_password: "password"
